@@ -215,7 +215,7 @@ def main():
     
     # Get environment variables
     recipient_email = os.getenv('RECIPIENT_EMAIL', 'omri42000@gmail.com')
-    smtp_password = os.getenv('GMAIL_APP_PASSWORD')
+    smtp_password = os.getenv('GMAIL_PASSWORD')
     
     if not smtp_password:
         print("❌ GMAIL_APP_PASSWORD not set in environment")
