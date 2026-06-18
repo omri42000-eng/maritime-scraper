@@ -16,13 +16,22 @@ from email.mime.multipart import MIMEMultipart
 from urllib.parse import urljoin
 import time
 
-# Keywords - Focused on SULFUR handling and discharge equipment
+# CRITICAL PRIORITY - Sulfur + Dust/Environmental (בעיית זיהום מי הים!)
+CRITICAL_KEYWORDS = [
+    'sulfur dust', 'dust suppression', 'dust control sulfur',
+    'environmental protection port', 'sea pollution', 'marine pollution',
+    'enclosed conveyor', 'cargo containment', 'rapid discharge',
+    'air quality monitoring', 'dust emission', 'sulfur handling system'
+]
+
+# PRIMARY KEYWORDS - Sulfur (בראש המייל!)
 PRIMARY_KEYWORDS = [
     'sulfur', 'sulphur', 'sulfur handling', 'sulfur discharge',
     'sulfur unloading', 'sulfur storage', 'bulk sulfur',
     'gypsum', 'dust control', 'environmental protection'
 ]
 
+# SECONDARY - Other equipment
 SECONDARY_KEYWORDS = [
     'conveyor system', 'bulk cargo', 'discharge equipment',
     'port equipment', 'unloading system', 'handling technology',
@@ -32,7 +41,7 @@ SECONDARY_KEYWORDS = [
     'breakbulk', 'general cargo', 'bagging system'
 ]
 
-KEYWORDS = PRIMARY_KEYWORDS + SECONDARY_KEYWORDS
+KEYWORDS = CRITICAL_KEYWORDS + PRIMARY_KEYWORDS + SECONDARY_KEYWORDS
 
 SOURCES = {
     'Maritime Executive': 'https://www.maritimeexecutive.com/feed',
@@ -50,6 +59,13 @@ SCRAPE_SOURCES = [
 def normalize_keyword(text):
     """Convert text to lowercase for comparison"""
     return text.lower()
+
+def is_critical_article(title, description=''):
+    """Check if article is CRITICAL - Sulfur + Environmental/Dust control"""
+    text = normalize_keyword(f"{title} {description}")
+    has_sulfur = any(keyword in text for keyword in PRIMARY_KEYWORDS)
+    has_critical = any(keyword in text for keyword in CRITICAL_KEYWORDS)
+    return has_sulfur and has_critical
 
 def is_sulfur_article(title, description=''):
     """Check if article is about sulfur handling"""
@@ -154,15 +170,16 @@ def save_seen_articles(articles):
         json.dump(articles, f, indent=2)
 
 def send_email(articles, recipient_email, smtp_password):
-    """Send email with scraped articles - Sulfur first with emphasis!"""
+    """Send email with scraped articles - CRITICAL (Sulfur+Environmental) FIRST!"""
     
     if not articles:
         print("No relevant articles found.")
         return
     
-    # Separate sulfur from other articles
-    sulfur_articles = [a for a in articles if is_sulfur_article(a['title'], a['description'])]
-    other_articles = [a for a in articles if a not in sulfur_articles]
+    # Separate articles into 3 categories
+    critical_articles = [a for a in articles if is_critical_article(a['title'], a['description'])]
+    sulfur_articles = [a for a in articles if is_sulfur_article(a['title'], a['description']) and a not in critical_articles]
+    other_articles = [a for a in articles if a not in critical_articles and a not in sulfur_articles]
     
     # Build email content
     html_content = f"""
@@ -174,6 +191,9 @@ def send_email(articles, recipient_email, smtp_password):
                 .header h2 {{ margin: 0; color: #1a1a1a; }}
                 .header p {{ margin: 5px 0; color: #666; }}
                 
+                .critical-section {{ background: #ffebee; border-left: 5px solid #c62828; padding: 20px; margin-bottom: 30px; border-radius: 4px; box-shadow: 0 2px 8px rgba(198,40,40,0.2); }}
+                .critical-section h3 {{ color: #c62828; margin-top: 0; font-size: 18px; }}
+                
                 .sulfur-section {{ background: #fff3f3; border-left: 5px solid #d32f2f; padding: 20px; margin-bottom: 30px; border-radius: 4px; }}
                 .sulfur-section h3 {{ color: #d32f2f; margin-top: 0; font-size: 18px; }}
                 
@@ -184,18 +204,25 @@ def send_email(articles, recipient_email, smtp_password):
                     background: #f9f9f9;
                     border-radius: 4px;
                 }}
+                .article.critical {{
+                    border-left: 4px solid #c62828;
+                    background: #fff5f5;
+                }}
                 .article.sulfur {{
                     border-left: 4px solid #ff6b6b;
                     background: #fff8f8;
                 }}
                 .article h3 {{ color: #1a5490; margin-top: 0; font-size: 16px; }}
+                .article.critical h3 {{ color: #c62828; font-weight: bold; }}
                 .article.sulfur h3 {{ color: #d32f2f; font-weight: bold; }}
                 .source {{ color: #666; font-size: 12px; }}
                 .link {{ color: #0066cc; text-decoration: none; }}
                 .link:hover {{ text-decoration: underline; }}
                 .timestamp {{ color: #999; font-size: 11px; }}
                 .section-title {{ color: #666; font-size: 14px; margin-top: 30px; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 8px; }}
+                .critical-badge {{ display: inline-block; background: #c62828; color: white; padding: 3px 10px; border-radius: 3px; font-size: 11px; margin-left: 10px; font-weight: bold; }}
                 .sulfur-badge {{ display: inline-block; background: #d32f2f; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-left: 10px; font-weight: bold; }}
+                .warning {{ color: #c62828; font-weight: bold; }}
             </style>
         </head>
         <body>
@@ -207,12 +234,34 @@ def send_email(articles, recipient_email, smtp_password):
             </div>
     """
     
-    # SULFUR ARTICLES - Top Priority!
+    # CRITICAL ARTICLES - Top Priority! (Sulfur + Environmental/Dust)
+    if critical_articles:
+        html_content += f"""
+            <div class="critical-section">
+                <h3>🔴🌊 CRITICAL - בעיה זיהום מי הים! ({len(critical_articles)})</h3>
+                <p class="warning">⚠️ פתרונות לבעיית הפיכת חומר אבקתי לים בזמן פריקת גופרית</p>
+                <p>אלו החדשות החשובות ביותר:</p>
+        """
+        
+        for article in critical_articles:
+            html_content += f"""
+                <div class="article critical">
+                    <h3>{article['title']} <span class="critical-badge">🌊 CRITICAL</span></h3>
+                    <p class="source">📍 מקור: {article['source']}</p>
+                    <p>{article['description']}</p>
+                    <a class="link" href="{article['link']}" target="_blank">🔗 קרא עוד →</a>
+                    <p class="timestamp">{article['published']}</p>
+                </div>
+            """
+        
+        html_content += "</div>"
+    
+    # SULFUR ARTICLES - High Priority
     if sulfur_articles:
         html_content += f"""
             <div class="sulfur-section">
-                <h3>🔴 חדשות גופרית - עדיפות גבוהה! ({len(sulfur_articles)})</h3>
-                <p>אלו החדשות החשובות ביותר לפריקה וטיפול בגופרית:</p>
+                <h3>🔴 חדשות גופרית ({len(sulfur_articles)})</h3>
+                <p>פתרונות וטכנולוגיות נוספות לטיפול בגופרית:</p>
         """
         
         for article in sulfur_articles:
@@ -255,7 +304,13 @@ def send_email(articles, recipient_email, smtp_password):
         sender_email = "omri42000@gmail.com"
         
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"📦 Maritime Opportunities - {datetime.now().strftime('%d.%m.%Y')}" + (f" | 🔴 {len(sulfur_articles)} SULFUR" if sulfur_articles else "")
+        subject = f"📦 Maritime Opportunities - {datetime.now().strftime('%d.%m.%Y')}"
+        if critical_articles:
+            subject = f"🔴🌊 CRITICAL - {len(critical_articles)} solutions! - {datetime.now().strftime('%d.%m.%Y')}"
+        elif sulfur_articles:
+            subject = f"🔴 {len(sulfur_articles)} SULFUR opportunities - {datetime.now().strftime('%d.%m.%Y')}"
+        
+        msg["Subject"] = subject
         msg["From"] = sender_email
         msg["To"] = recipient_email
         
@@ -267,6 +322,7 @@ def send_email(articles, recipient_email, smtp_password):
             server.sendmail(sender_email, recipient_email, msg.as_string())
         
         print(f"✅ Email sent to {recipient_email}")
+        print(f"   - CRITICAL articles: {len(critical_articles)}")
         print(f"   - Sulfur articles: {len(sulfur_articles)}")
         print(f"   - Other articles: {len(other_articles)}")
         return True
