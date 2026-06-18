@@ -2,7 +2,7 @@ name: Daily Maritime News Scraper
 
 on:
   schedule:
-    # כל יום ב-3 בבוקר (UTC+3 = 00:00 UTC)
+    # כל יום ב-3 בבוקר (UTC = 00:00 UTC)
     - cron: '0 0 * * *'
   
   # גם ידני אם אתה רוצה לבדוק
@@ -14,10 +14,10 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       
@@ -38,5 +38,6 @@ jobs:
           git config --local user.name "GitHub Action"
           git add -A
           git commit -m "Daily scrape results - $(date)" || echo "No changes to commit"
-          git push
-        continue-on-error: true
+          git push origin main 2>&1 || echo "Push failed but scraper ran successfully"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
