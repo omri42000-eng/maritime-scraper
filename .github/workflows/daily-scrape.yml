@@ -1,0 +1,42 @@
+name: Daily Maritime News Scraper
+
+on:
+  schedule:
+    # כל יום ב-3 בבוקר (UTC+3 = 00:00 UTC)
+    - cron: '0 0 * * *'
+  
+  # גם ידני אם אתה רוצה לבדוק
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run scraper
+        env:
+          RECIPIENT_EMAIL: omri42000@gmail.com
+          GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+        run: python scraper.py
+      
+      - name: Commit and push results
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          git commit -m "Daily scrape results - $(date)" || echo "No changes to commit"
+          git push
+        continue-on-error: true
